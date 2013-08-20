@@ -1,16 +1,20 @@
 require 'fileutils'
 require 'fog'
 
+S3_CONFIG = YAML.load_file('s3_config.yml')
+LOG_CONFIG = YAML.load_file('dump_config.yml')
+
 class LogDump
 
   def initialize(machine_type)
-   @log_details = YAML.load_file('dump_config.yml')[machine_type]
+   @log_details = LOG_CONFIG[machine_type]
   end
 
   # @param [Hash] dump_config
   def prepare_logs
     archive_locations = []
     @log_details.each {|log_detail| archive_locations.push(process_logs(log_detail)) }
+    archive_locations
   end
 
   def process_logs(log_info)
@@ -42,18 +46,26 @@ class LogDump
 
 end
 class S3Upload
-  def initialize(files_to_upload)
+  def initialize(files_to_upload,upload_id)
     @upload_contents = files_to_upload
-    s3_details = YAML.load_file('s3_config.yml')[RAILS_ENV]
-    @s3_connection = Fog::Storage.new({
+    @machine_type = upload_id
+    s3_details = S3_CONFIG[ENV['RAILS_ENV']]
+    s3_connection = Fog::Storage.new({
                                           :provider                 => 'AWS',
                                           :aws_access_key_id        => s3_details['access_key'],
                                           :aws_secret_access_key    => s3_details['secret_key']
                                       })
+    @s3_bucket = s3_connection.directories.get(s3_details['bucket_name'])
   end
 
   def upload_files
-
+    key_name = get_key_name
+    @upload_contents.each do |upload|
+      archive_name = upload.split('/').last
+      log = @s3_bucket.files.new(:key => "#{key_name}/#{archive_name}")
+      log.body = File.open(upload)
+      log.save
+    end
   end
 
   def uptime_range
@@ -62,6 +74,10 @@ class S3Upload
     seconds_up = time_to_seconds(days_up,hours_up)
     birth      = Time.now - seconds_up
     "#{birth.strftime('%Y.%m.%d.%H.%M')}-#{Time.now.strftime('%Y.%m.%d.%H.%M')}"
+  end
+
+  def get_key_name
+    "#{uptime_range}.#{@machine_type}"
   end
 
   def time_to_seconds(days,hour)
@@ -74,7 +90,9 @@ class S3Upload
 
 
 end
+type = 'rails_frontend'
+b = LogDump.new(type)
+uploader = S3Upload.new(b.prepare_logs,type)
+uploader.upload_files
 
-b = LogDump.new('rails_frontend')
-b.prepare_logs
 
