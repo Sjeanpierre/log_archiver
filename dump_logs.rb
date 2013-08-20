@@ -8,10 +8,12 @@ class LogDump
 
   def initialize(machine_type)
    @log_details = LOG_CONFIG[machine_type]
+   puts "instantiated logdump with machine type #{@log_details.to_s}"
   end
 
   # @param [Hash] dump_config
   def prepare_logs
+    puts 'preparing logs for archive'
     archive_locations = []
     @log_details.each {|log_detail| archive_locations.push(process_logs(log_detail)) }
     archive_locations
@@ -59,8 +61,10 @@ class S3Upload
   end
 
   def upload_files
+    puts "uploading log archives"
     key_name = get_key_name
     @upload_contents.each do |upload|
+      puts "--#{upload}\n"
       archive_name = upload.split('/').last
       log = @s3_bucket.files.new(:key => "#{key_name}/#{archive_name}")
       log.body = File.open(upload)
@@ -90,6 +94,7 @@ class S3Upload
 
 
 end
+
 type = 'rails_frontend'
 b = LogDump.new(type)
 uploader = S3Upload.new(b.prepare_logs,type)
