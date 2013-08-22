@@ -117,16 +117,17 @@ class Settings
     if profile && File.exists?('s3_config.yml')
       s3_config = YAML.load_file('s3_config.yml')[ENV['RAILS_ENV']]
       profile ? s3_config['dump_profile'] = profile : raise('missing profile')
+      s3_config = Hash[s3_config.map{|(k,v)| [k.to_sym,v]}]
     elsif valid_options?(options)
       s3_config = options.to_hash
     else
       valid_options?(options,true)
     end
-    @access_key = s3_config['access_key']
-    @secret_key = s3_config['secret_key']
-    @bucket_name = s3_config['bucket_name']
-    @profile = s3_config['dump_profile']
-    @machine_name = s3_config['machine_name'].split(' ').join('-') || `hostname`.chomp
+    @access_key = s3_config[:access_key]
+    @secret_key = s3_config[:secret_key]
+    @bucket_name = s3_config[:bucket_name]
+    @profile = s3_config[:dump_profile]
+    @machine_name = (s3_config[:machine_name] || `hostname`.chomp).split(' ').join('-')
   end
 
   def valid_options?(options,return_missing=nil)
