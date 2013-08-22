@@ -2,8 +2,6 @@ require 'fileutils'
 require 'fog'
 require 'slop'
 
-
-S3_CONFIG =
 LOG_CONFIG = YAML.load_file('dump_config.yml')
 
 options = Slop.parse do
@@ -149,9 +147,8 @@ if options.dump_profile? && !options.access_key?
 else
   settings = Settings.new(options)
 end
-b = LogDump.new(settings.profile)
-#b = LogDump.new(type)
-uploader = S3Upload.new(b.prepare_logs,settings)
+log_dump = LogDump.new(settings.profile)
+uploader = S3Upload.new(log_dump.prepare_logs,settings)
 uploader.upload_files
 
 
