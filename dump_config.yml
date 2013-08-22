@@ -1,12 +1,16 @@
+---
 rails_frontend:
-  /Users/Steven/src/test/logs:
+  /home/rails/mysageone_na/current/log/:
+    - '*.log'
+  /home/rails/na_sage_one/current/log/:
+    - '*.log'
+  /var/log:
+    - messages
+    - cron
+    - maillog
+    - yum
+    - secure
+  /var/log/httpd:
     - access
-    - test
-#  /var/log:
-#    - filepattern1
-#    - filepattern2
-#    - filepattern3
-#  /var/log/httpd:
-#    - filepattern1
-#    - filepattern2
-#    - filepattern3
+    - error
+    - ssl
