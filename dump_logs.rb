@@ -5,7 +5,7 @@ require 'slop'
 LOG_CONFIG = YAML.load_file('dump_config.yml')
 
 options = Slop.parse do
-  banner 'Usage: dump_logs.rb [options]'
+  banner 'Usage: dump_logs.rb -access_key ak -secret_key sk -bucket_name bn -dump_profile dp -machine_name mn'
   on :access_key=, 'Amazon S3 Access Key'
   on :secret_key=, 'Amazon S3 Secret key'
   on :bucket_name=, 'Amazon S3 bucket name for dumps'
