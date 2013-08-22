@@ -1,14 +1,24 @@
 require 'fileutils'
 require 'fog'
+require 'slop'
 
-S3_CONFIG = YAML.load_file('s3_config.yml')
+
+S3_CONFIG =
 LOG_CONFIG = YAML.load_file('dump_config.yml')
 
+options = Slop.parse do
+  banner 'Usage: dump_logs.rb [options]'
+  on :access_key=, 'Amazon S3 Access Key'
+  on :secret_key=, 'Amazon S3 Secret key'
+  on :bucket_name=, 'Amazon S3 bucket name for dumps'
+  on :dump_profile=, 'Backup profile to use machine type'
+  on :machine_name=, 'Machine name to use in identification file'
+end
 class LogDump
 
   def initialize(machine_type)
    @log_details = LOG_CONFIG[machine_type]
-   puts "instantiated logdump with machine type #{@log_details.to_s}"
+   puts "instantiated logdump with machine type #{machine_type}"
   end
 
   # @param [Hash] dump_config
@@ -48,28 +58,36 @@ class LogDump
 
 end
 class S3Upload
-  def initialize(files_to_upload,upload_id)
+  def initialize(files_to_upload,settings)
     @upload_contents = files_to_upload
-    @machine_type = upload_id
-    s3_details = S3_CONFIG[ENV['RAILS_ENV']]
+    @machine_type = settings.profile
+    @machine_name = settings.machine_name
+    s3_details = settings
     s3_connection = Fog::Storage.new({
                                           :provider                 => 'AWS',
-                                          :aws_access_key_id        => s3_details['access_key'],
-                                          :aws_secret_access_key    => s3_details['secret_key']
+                                          :aws_access_key_id        => s3_details.access_key,
+                                          :aws_secret_access_key    => s3_details.secret_key
                                       })
-    @s3_bucket = s3_connection.directories.get(s3_details['bucket_name'])
+    @s3_bucket = s3_connection.directories.get(s3_details.bucket_name)
   end
 
   def upload_files
-    puts "uploading log archives"
+    puts 'uploading log archives'
     key_name = get_key_name
     @upload_contents.each do |upload|
       puts "--#{upload}\n"
       archive_name = upload.split('/').last
-      log = @s3_bucket.files.new(:key => "#{key_name}/#{archive_name}")
-      log.body = File.open(upload)
-      log.save
+      file = @s3_bucket.files.new(:key => "#{key_name}/#{archive_name}")
+      file.body = File.open(upload)
+      file.save
     end
+    write_identifier(key_name)
+  end
+
+  def write_identifier(key_name)
+    hostname = @machine_name
+    id = @s3_bucket.files.new(:key => "#{key_name}/#{hostname}")
+    id.save
   end
 
   def uptime_range
@@ -94,10 +112,46 @@ class S3Upload
 
 
 end
+class Settings
+  attr_reader :access_key, :secret_key, :bucket_name, :profile, :machine_name
+  def initialize(options=nil,profile=nil)
+    raise('Command line options or a profile name must be provided') unless options || profile
+    if profile && File.exists?('s3_config.yml')
+      s3_config = YAML.load_file('s3_config.yml')[ENV['RAILS_ENV']]
+      profile ? s3_config['dump_profile'] = profile : raise('missing profile')
+    elsif valid_options?(options)
+      s3_config = options.to_hash
+    else
+      valid_options?(options,true)
+    end
+    @access_key = s3_config['access_key']
+    @secret_key = s3_config['secret_key']
+    @bucket_name = s3_config['bucket_name']
+    @profile = s3_config['dump_profile']
+    @machine_name = s3_config['machine_name'].split(' ').join('-') || `hostname`.chomp
+  end
 
-type = 'rails_frontend'
-b = LogDump.new(type)
-uploader = S3Upload.new(b.prepare_logs,type)
+  def valid_options?(options,return_missing=nil)
+    return false if options.nil?
+    options_hash = options.to_hash
+    missing_values = options_hash.keys.select {|key| options_hash[key].nil?}
+    raise(ArgumentError, "The following arguments do not have values #{missing_values}, please see usage for proper commands") if return_missing
+    if missing_values.count != 0
+      false
+    else
+      true
+    end
+  end
+end
+
+if options.dump_profile? && !options.access_key?
+  settings = Settings.new(nil,options['dump_profile'])
+else
+  settings = Settings.new(options)
+end
+b = LogDump.new(settings.profile)
+#b = LogDump.new(type)
+uploader = S3Upload.new(b.prepare_logs,settings)
 uploader.upload_files
 
 
