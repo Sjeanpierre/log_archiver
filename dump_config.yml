@@ -1,8 +1,23 @@
 ---
-rails_frontend:
-  /home/rails/mysageone_na/current/log/:
+rails_na_frontend:
+  /home/rails/mysageone_us/current/log/:
     - '*.log'
-  /home/rails/na_sage_one/current/log/:
+  /home/rails/sageone_us/current/log/:
+    - '*.log'
+  /var/log:
+    - messages
+    - cron
+    - maillog
+    - yum
+    - secure
+  /var/log/httpd:
+    - access
+    - error
+    - ssl
+rails_ca_frontend:
+  /home/rails/mysageone_ca/current/log/:
+    - '*.log'
+  /home/rails/sageone_ca/current/log/:
     - '*.log'
   /var/log:
     - messages
