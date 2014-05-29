@@ -29,3 +29,30 @@ rails_ca_frontend:
     - access
     - error
     - ssl
+rails_na_basics_frontend:
+  /home/rails/sageone_basics_us/current/log/:
+    - '*.log'
+  /var/log:
+    - messages
+    - cron
+    - maillog
+    - yum
+    - secure
+  /var/log/httpd:
+    - access
+    - error
+    - ssl
+rails_ca_basics_frontend:
+  /home/rails/sageone_basics_ca/current/log/:
+    - '*.log'
+  /var/log:
+    - messages
+    - cron
+    - maillog
+    - yum
+    - secure
+  /var/log/httpd:
+    - access
+    - error
+    - ssl
+
